@@ -36,5 +36,5 @@ function ignoreFavicon(req, res, next) {
 app.use(ignoreFavicon);
 
 http.listen(3000, function(){
-  console.log('listening on *:300');
+  console.log('listening on *:3000');
 });
