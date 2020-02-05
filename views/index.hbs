@@ -1,0 +1,347 @@
+<div class="controls">
+
+    <button id="left"></button>
+    <button id="right"></button>
+    <button id="zoomIn"></button>
+    <button id="zoomOut"></button>
+    
+</div>
+<script type="module">
+
+    import * as THREE from '/three.module.js';
+    import { OrbitControls } from '/OrbitControls.js';
+    import { WEBGL } from '/WebGL.js';
+    import { GUI } from '/dat.gui.module.js';
+
+    let 
+        container, folder, controls,
+        camera, scene, renderer;
+
+    const 
+        WIDTH = window.innerWidth,
+        HEIGHT = window.innerHeight,
+        VIEW_ANGLE = 45,	
+        ASPECT = WIDTH / HEIGHT,
+        FAR = 80,
+        NEAR = 1;
+
+    let 
+        X_axis = new THREE.Vector3( 1, 0, 0 ),
+        Y_axis = new THREE.Vector3( 0, 1, 0 );
+
+    let set_rotateAroundWorldAxis = ( object, axis, radians ) => {
+
+        let rotWorldMatrix = new THREE.Matrix4();
+        rotWorldMatrix.makeRotationAxis( axis.normalize(), radians );
+        rotWorldMatrix.multiply( object.matrix );		
+        object.matrix = rotWorldMatrix;
+        object.rotation.setFromRotationMatrix( object.matrix );
+        
+    }
+
+    let loader = new THREE.TextureLoader();
+
+    let createBoard = ( width, depth ) => {
+
+        let boardTexture = loader.load( '/diffuse_.jpg' );
+        boardTexture.wrapS = boardTexture.wrapT = THREE.RepeatWrapping;
+        boardTexture.repeat.set( 3, 3 );
+        boardTexture.rotation = Math.PI/2;
+        boardTexture.anisotropy = 16;
+
+        let boardGeometry = new THREE.BoxBufferGeometry( width, depth, width );
+        let boardMaterial = new THREE.MeshStandardMaterial( { side: THREE.DoubleSide, flatShading: true, map: boardTexture, needsUpdate : true } );
+        let board = new THREE.Mesh( boardGeometry, boardMaterial );
+        board.receiveShadow = false;
+        board.castShadow = true; 
+        scene.add( board );
+
+        return board
+    }
+
+    let update_Geometry = geometrys => {
+        
+        geometrys.forEach( geometry => {
+        
+            geometry.verticesNeedUpdate = true;
+            geometry.elementsNeedUpdate = true;
+            geometry.morphTargetsNeedUpdate = true;
+            geometry.uvsNeedUpdate = true;
+            geometry.normalsNeedUpdate = true;
+            geometry.colorsNeedUpdate = true;
+            geometry.tangentsNeedUpdate = true;
+        
+        });				
+    }
+
+    let init = () => {
+
+        // container
+
+        container = document.createElement( 'div' );
+        document.body.appendChild( container );
+
+        // scene
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color( 0xcce0ff );
+        scene.fog = new THREE.Fog( 0xcce0ff, 50, 100 );
+
+        // camera
+
+        camera = new THREE.PerspectiveCamera( VIEW_ANGLE, WIDTH / HEIGHT, NEAR, FAR );
+        camera.position.set( 35, 20, 22 );
+
+        // lights
+
+        scene.add( new THREE.AmbientLight( 0x666666 ) );
+
+        let light = new THREE.DirectionalLight( 0xdfebff, 1 );
+        light.position.set( 20, 50, 50 );
+        light.position.multiplyScalar( 1.5 );
+
+        light.castShadow = true;
+
+        light.shadow.mapSize.width = 1024;
+        light.shadow.mapSize.height = 1024;
+
+        let d = 90;
+
+        light.shadow.camera.left = - d;
+        light.shadow.camera.right = d;
+        light.shadow.camera.top = d;
+        light.shadow.camera.bottom = - d;
+
+        light.shadow.camera.far = 400;
+
+        scene.add( light );
+    
+        // ground
+
+        let groundTexture = loader.load( '/ground_.jpg' );
+        groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
+        groundTexture.repeat.set( 23, 23 );
+        groundTexture.anisotropy = 16;
+
+        let groundMaterial = new THREE.MeshStandardMaterial( { map: groundTexture, roughness: 0.8 } );
+
+        let ground = new THREE.Mesh( new THREE.BoxBufferGeometry( 200, 200 ), groundMaterial );
+        ground.rotation.x = - Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add( ground );
+
+        // renderer
+
+        renderer = new THREE.WebGLRenderer( { antialias: true } );
+        renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize( WIDTH, HEIGHT );
+
+        renderer.gammaInput = true;
+        renderer.gammaOutput = true;
+        renderer.gammaFactor = 2.2;
+
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.shadowMap.enabled = true;
+        renderer.physicallyCorrectLights = true;
+        renderer.autoClear = true;
+
+        container.appendChild( renderer.domElement );
+        renderer.domElement.style.position = "relative";
+
+        // controls
+        
+        controls = new OrbitControls( camera, renderer.domElement );
+        controls.maxPolarAngle = Math.PI * 0.4;
+        controls.minDistance = 10;
+        controls.maxDistance = 70;
+        controls.autoRotate = true;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.25;
+        controls.rotateSpeed = 0.06;
+
+        // boards	
+
+        let 
+            width = 10, depth = 0.01;
+
+        ///////////boardRight////////
+
+        let board_1 = createBoard( width, depth )
+        board_1.position.setY( width * 0.5 );
+        board_1.position.setZ( -width * 0.5 );
+        set_rotateAroundWorldAxis(board_1, X_axis, Math.PI/2);
+
+        ///////////boardLeft////////
+
+        let board_2 = createBoard(width, depth)
+        board_2.position.setY( width * 0.5 );
+        board_2.position.setZ( width * 0.5 );
+        set_rotateAroundWorldAxis(board_2, X_axis, Math.PI/2);
+
+        ////////////boardBack//////
+
+        let board_3 = createBoard(width, depth)
+        board_3.position.setX( -width * 0.5 );
+        board_3.position.setY( width * 0.5 );
+        set_rotateAroundWorldAxis( board_3, X_axis, Math.PI/2 );
+        set_rotateAroundWorldAxis( board_3, Y_axis, Math.PI/2 );
+
+        ///////////boardFront//////
+
+        let board_4 = createBoard(width, depth)
+        board_4.position.setX( width * 0.5 );
+        board_4.position.setY( width * 0.5 );
+        set_rotateAroundWorldAxis( board_4, X_axis, Math.PI/2 );
+        set_rotateAroundWorldAxis( board_4, Y_axis, Math.PI/2 );
+
+        ///////////boardTop////////
+
+        let board_5 = createBoard( width, depth )
+        board_5.position.setY(width);
+
+        //////////boardGround//////
+
+        let board_6 = createBoard(width, depth)
+        board_6.position.setY(1);
+        
+        // dat.Gui
+
+        const datGui  = new GUI( { autoPlace: true } );
+        var box = datGui.addFolder('Cube');
+        box.add( board_1.geometry.parameters, 'width', 10,  50 ).name( 'Width' ).onChange( function ( val ) {
+            
+            let width = board_1.geometry.parameters.width;
+
+            board_1.scale.x = board_2.scale.x = width / 10;
+
+            board_1.material.map.repeat.setY( 3 * board_1.scale.x );
+            board_2.material.map.repeat.setY( 3 * board_2.scale.x );
+
+            board_3.position.setX( -width / 2 );
+            board_4.position.setX( width  /2 );
+
+            board_5.scale.setX( width / 10 );
+            board_5.material.map.repeat.setY( 3  * board_2.scale.x );
+
+            board_6.scale.setX(width / 10)
+            board_6.material.map.repeat.setY( 3  * board_2.scale.x );
+
+            update_Geometry( [ board_1.geometry, board_2.geometry, board_3.geometry, board_4.geometry, board_5.geometry, board_6.geometry ] );
+
+            controls.autoRotate = false;
+
+        } );
+        
+        box.add( board_3.geometry.parameters, 'depth', 10,  50 ).name( 'Length' ).onChange( function ( val ) {
+
+            let width = board_3.geometry.parameters.depth;
+
+            board_3.scale.x = board_4.scale.x = width / 10;
+            
+            board_3.material.map.repeat.setY( 3  * board_3.scale.x );
+            board_4.material.map.repeat.setY( 3  * board_4.scale.x );
+
+            board_1.position.setZ( -width / 2);
+            board_2.position.setZ( width /2 );
+
+            board_5.scale.setZ( width / 10 );
+            board_5.material.map.repeat.setX( 3 * board_3.scale.x );
+
+            board_6.scale.setZ( width / 10 );
+            board_6.material.map.repeat.setX( 3 * board_3.scale.x );
+
+            update_Geometry( [ board_1.geometry, board_2.geometry, board_3.geometry, board_4.geometry, board_5.geometry, board_6.geometry ] );
+
+            controls.autoRotate = false;
+            
+        } );
+
+        box.open();
+
+        window.addEventListener("resize", () => {
+
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize( window.innerWidth, window.innerHeight );
+
+        });
+
+        document.querySelector('#left').addEventListener('click', () => {
+
+            controls.autoRotate = false;
+            scene.rotation.y += 1.2;
+            controls.update();
+
+        }, false )
+
+        document.querySelector('#right').addEventListener('click', () => {
+
+            controls.autoRotate = false;
+            scene.rotation.y += 1.2;
+            controls.update();
+
+        }, false )
+
+        document.querySelector('#zoomIn').addEventListener('click', () => {
+
+            controls.autoRotate = false;
+            camera.position.multiplyScalar( 1.2 );
+            controls.update();
+
+        }, false )
+
+        document.querySelector('#zoomOut').addEventListener('click', () => {
+
+            controls.autoRotate = false;
+            camera.position.divideScalar( 1.2 );
+            controls.update();
+
+        }, false )
+
+    }
+
+    //
+
+    let render = () => {
+
+        controls.update();
+
+        renderer.render( scene, camera );
+
+    }
+
+    //
+
+    let animate = () => {
+
+        requestAnimationFrame( animate );
+
+        render();
+
+    }
+
+    //
+
+    if ( WEBGL.isWebGL2Available() || WEBGL.isWebGLAvailable() ) {
+
+        try {
+
+            init();
+            animate();
+ 
+        } catch ( error ) {
+
+            console.log( "Your program encountered an unrecoverable error, can not draw on canvas. Error was:" );
+            console.log( error );
+
+        }
+
+    } else {
+
+        let warning = WEBGL.getWebGLErrorMessage();
+        document.querySelector( '#container' ).appendChild( warning );
+
+    }
+
+</script>
